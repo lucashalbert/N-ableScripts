@@ -4,3 +4,5 @@
 # Except Install_WMF-5.1.vbs
 !.gitignore
 !Install_WMF-5.1.vbs
+!README.md
+!LICENSE
