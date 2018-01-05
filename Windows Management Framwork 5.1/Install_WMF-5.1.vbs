@@ -2,7 +2,7 @@
 '/
 '/  Author:         Lucas Halbert <https://www.lhalbert.xyz>
 '/  Date:           10.05.2017
-'/  Last Edited:    11.10.2017
+'/  Last Edited:    01.05.2018
 '/  Purpose:        Install Windows Management Framework 5.1
 '/  Description:    Installs the Windows Management Framework version 5.1. Checks
 '/                  that the .NET Framework dependecies are met and installs the
@@ -44,7 +44,13 @@
 '/
 '////////////////////////////////////////////////////////////////////////////////////
 '/
-'/  Revisions:  11.10.2017  Fix IsPowerShellInstalled function to account for
+'/  Revisions:  01/05/2018  Add recursive call to start the Windows Update service
+'/                          and to check if it properly started. Add Sleep subrouteine
+'/                          to make waiting simpler. Fix .NET Framework detection.
+'/
+'/              12.18.2017  Add logging to the wusa MSU install.
+'/
+'/              11.10.2017  Fix IsPowerShellInstalled function to account for
 '/                          PowerShell versions lower than 3.x. Set Constant for
 '/                          variables that don't change.
 '/
@@ -95,9 +101,10 @@ Const strDotNETSourceFileName="NDP452-KB2901954-Web.exe"  '/ String
 Const strExpectedDotNETVersion="4.5.2"                    '/ String
 Const strExpectedPSVersion="5.1.14409.1012"               '/ String
 Const strTempDir = "c:\Temp"                              '/ String
-Const strVerboseLogging=False                             '/ Boolean
+strVerboseLogging=False                                   '/ Boolean
 strWMFLog = strTempDir & "\WMF_Installer.log"       '/ String
 strDotNETLog = strTempDir & "\.NET_Installer.log"   '/ String
+strWUSALog = strTempDir & "\WUSA.log"               '/ String
 strOsVersion=""                                     '/ Float
 strOsProductType=""                                 '/ Int
 strOsArchitecture=""                                '/ String
@@ -183,6 +190,16 @@ End Sub
 
 '////////////////////////////////////////////////////////////////////////////////////
 '/
+'/  Subroutine to sleep for specified number of milliseconds
+'/
+'////////////////////////////////////////////////////////////////////////////////////
+Sub Sleep(time)
+    WScript.Sleep(time)
+End Sub
+
+
+'////////////////////////////////////////////////////////////////////////////////////
+'/
 '/  Subroutine to Collect OS information
 '/
 '////////////////////////////////////////////////////////////////////////////////////
@@ -204,7 +221,7 @@ Sub GetOsInformation()
     ' Collect OS information 
     Set colItems = objWMIService.ExecQuery("Select * from Win32_OperatingSystem",,48)
     For Each objItem in colItems
-        strMsg = "/******** OS Information ********/" & vbCrLf & _
+        strMsg = vbCrLf & "/******** OS Information ********/" & vbCrLf & _
                  "Computer Name   : " & objItem.CSName & vbCrLf & _
                  "Windows Version : " & objItem.Version & vbCrLf & _
                  "ServicePack     : " & objItem.CSDVersion & vbCrLf & _
@@ -241,43 +258,81 @@ End Sub
 Sub GetMaxInstalledDotNetVersion
     Call WriteLogData(Now & ": INFO: Collecting Installed .NET Framework Versions...", True)
     On Error Resume Next
-    
-    ' Query WMI
-    Set objWMIService = GetObject("winmgmts://" & strComputer & "/root/cimv2")
-    
-    ' Get the error number 
-    If Err.Number Then
-        strMsg = vbCrLf & strComputer & vbCrLf & _
-                 "Error # " & Err.Number & vbCrLf & _
-                 Err.Description & vbCrLf & vbCrLf
-        
-        Call WriteLogData(Now & ": " & strMsg, True)
-        AppExit(1)
-    End If
 
-    '/ Collect .NET framework information
-    Set colItems = objWMIService.ExecQuery("Select Name, Version from Win32_Product Where Name Like 'Microsoft .NET Framework%'")
-    strMsg = "/** .NET Framework Information **/" & vbCrLf
-    For Each objItem in colItems
-        strMsg = strMsg & _
-            "Framework Name  : " & objItem.Name & vbCrLf & _
-            ".NET Version    : " & objItem.Version & vbCrLf
+    '/ Set impersonation for registry query
+    set objReg=GetObject("winmgmts:{impersonationLevel=impersonate}!\\" & strComputer & "\root\default:StdRegProv")
 
-        If objItem.Version > strMaxInstalledDotNETVersion Then
-            strMaxInstalledDotNETVersion = objItem.Version
-        End If
+    '/ Get all keys within strKeyPath
+    strValueName = "Version"
+    strKeyPath = "SOFTWARE\Microsoft\NET Framework Setup\NDP"
+    objReg.EnumKey HKEY_LOCAL_MACHINE,strKeyPath,allSub
 
-    ' Cleanup
-    Set objWMIService = Nothing
-    Set colItems = Nothing
+    strMsg = vbCrLf & "/** .NET Framework Information **/" & vbCrLf
+
+    For Each strKey In allSub
+        objReg.EnumKey HKEY_LOCAL_MACHINE,strKeyPath & "\" & strKey, allSubTwo
+        For Each strKeyTwo In allSubTwo
+            objReg.GetStringValue HKEY_LOCAL_MACHINE,strKeyPath & "\" & strKey & "\" & strKeyTwo,strValueName,strValue
+            if strValue <> Empty Then
+                Call WriteLogData(Now & ": INFO: Detected .NET Version: " & strValue, False)
+                strMsg = strMsg & _
+                    ".NET Version    : " & strValue & vbCrLf
+
+                If strValue > strMaxInstalledDotNETVersion Then
+                    strMaxInstalledDotNETVersion = strValue
+                End If
+            End If
+        Next
     Next
-    
-
     strMsg = strMsg & _
         "/********************************/" & vbCrLf
 
+    Set objReg = Nothing
+
     Call WriteLogData(strMsg, False)
     Call WriteLogData(Now & ": INFO: Max Installed .NET Version: " & strMaxInstalledDotNETVersion, False)
+
+
+
+'/    Call WriteLogData(Now & ": INFO: Collecting Installed .NET Framework Versions...", True)
+'/    On Error Resume Next
+'/    
+'/    ' Query WMI
+'/    Set objWMIService = GetObject("winmgmts://" & strComputer & "/root/cimv2")
+'/    
+'/    ' Get the error number 
+'/    If Err.Number Then
+'/        strMsg = vbCrLf & strComputer & vbCrLf & _
+'/                 "Error # " & Err.Number & vbCrLf & _
+'/                 Err.Description & vbCrLf & vbCrLf
+'/        
+'/        Call WriteLogData(Now & ": " & strMsg, True)
+'/        AppExit(1)
+'/    End If
+'/
+'/    '/ Collect .NET framework information
+'/    Set colItems = objWMIService.ExecQuery("Select Name, Version from Win32_Product Where Name Like 'Microsoft .NET Framework%'")
+'/    strMsg = "/** .NET Framework Information **/" & vbCrLf
+'/    For Each objItem in colItems
+'/        strMsg = strMsg & _
+'/            "Framework Name  : " & objItem.Name & vbCrLf & _
+'/            ".NET Version    : " & objItem.Version & vbCrLf
+'/
+'/        If objItem.Version > strMaxInstalledDotNETVersion Then
+'/            strMaxInstalledDotNETVersion = objItem.Version
+'/        End If
+'/
+'/    ' Cleanup
+'/    Set objWMIService = Nothing
+'/    Set colItems = Nothing
+'/    Next
+'/    
+'/
+'/    strMsg = strMsg & _
+'/        "/********************************/" & vbCrLf
+'/
+'/    Call WriteLogData(strMsg, False)
+'/    Call WriteLogData(Now & ": INFO: Max Installed .NET Version: " & strMaxInstalledDotNETVersion, False)
 End Sub
 
 '////////////////////////////////////////////////////////////////////////////////////
@@ -306,7 +361,7 @@ End Sub
 '////////////////////////////////////////////////////////////////////////////////////
 Sub InstallMsu(installerPath)
     '/ Install MSU
-    cmdLine ="wusa.exe " & installerPath & " /quiet /norestart"
+    cmdLine ="wusa.exe " & installerPath & " /quiet /norestart /log:" & strWUSALog
     
     Call WriteLogData(Now & ": INFO: Running " & cmdLine, False)
     
@@ -421,24 +476,37 @@ End Function
 '/  Function to Determine if Windows Update Service is Running
 '/
 '////////////////////////////////////////////////////////////////////////////////////
-Function IsWindowsUpdateServiceRunning()
+Function IsWindowsUpdateServiceRunning(counter)
     Call WriteLogData(Now & ": INFO: Checking if Windows Update Service is running", True)
+
+    If counter >= 3 Then
+        Call WriteLogData(Now & ": ERROR: Windows Update Service (wuauserv) is not running. Restart failed 3 times.", True)
+        IsWindowsUpdateServiceRunning=False
+        Exit Function
+    End If
 
     '/ Set impersonation for WMI query
     Set objWMIService = GetObject("winmgmts:" & "{impersonationLevel=impersonate}!\\" & strComputer & "\root\cimv2")
     
-    strWMIQuery = "Select * from Win32_Service Where Name = 'wuauserv' and state='Running'"
-    If objWMIService.ExecQuery(strWMIQuery).Count > 0 Then
-        Call WriteLogData(Now & ": INFO: Windows Update Service (wuauserv) is running.", False)
-        
-        IsWindowsUpdateServiceRunning=True
-        Exit Function
-    Else
-        Call WriteLogData(Now & ": ERROR: Windows Update Service (wuauserv) is not running.", True)
+    '/strWMIQuery = "Select * from Win32_Service Where Name = 'wuauserv' and state='Running'"
+    strWMIQuery = "Select * from Win32_Service Where Name = 'wuauserv' and StartMode='Auto'"
 
-        IsWindowsUpdateServiceRunning=False
-        Exit Function
-    End If
+    For Each service In objWMIService.ExecQuery(strWMIQuery)
+        If service.State <> "Running" Then
+            Call WriteLogData(Now & ": INFO: Windows Update Service (wuauserv) is not running. Attempting to start", True)
+            service.StartService
+            counter = counter + 1
+            Sleep(2000)
+
+            '/ Recursively call IsWindowsUpdateServiceRunning to check if sending start command worked
+            IsWindowsUpdateServiceRunning=IsWindowsUpdateServiceRunning(counter)
+            Exit Function
+        Else
+            Call WriteLogData(Now & ": INFO: Windows Update Service (wuauserv) is running.", False)
+            IsWindowsUpdateServiceRunning=True
+            Exit Function
+        End If
+    Next
 End Function
 
 
@@ -611,7 +679,8 @@ Function CopyInstallerFromShare(file)
     '/ Copy installer from share to temp directory
     sourcePath = strShare & "\" & file
     destinationPath = strTempDir & "\" & file
-    Call WriteLogData(Now & ": INFO: copying " & sourcePath & " to " & destinationPath, False)
+
+    Call WriteLogData(Now & ": INFO: Copying " & sourcePath & " to " & destinationPath, False)
     objFSO.CopyFile sourcePath , destinationPath , true
 
     If Err.Number Then
@@ -630,10 +699,12 @@ Function CopyInstallerFromShare(file)
     
     If objFSO.FileExists(destinationPath) Then
         Call WriteLogData(Now & ": INFO: Copied " & file & " from:" & strShare & " to " & destinationPath, False)
+        
         CopyInstallerFromShare=True
         Exit Function
     Else
         Call WriteLogData(Now & ": ERROR: Failed to copy " & file & " from:" & strShare & " to " & destinationPath, True)
+        
         CopyInstallerFromShare=False
         Exit Function
     End If
@@ -683,7 +754,7 @@ End Function
 '////////////////////////////////////////////////////////////////////////////////////
 Function InstallWMF()
     '/ Check if Windows update service is running
-    If NOT IsWindowsUpdateServiceRunning() Then
+    If NOT IsWindowsUpdateServiceRunning(0) Then
         InstallWMF=False
         Exit Function
     End If
@@ -747,15 +818,19 @@ Call WriteLogData(vbCrLf & vbCrLf & _
 
 '/ Parse Command line Arguments
 If (WScript.Arguments.Count < 1) Then
-    Call WriteLogData("Usage: (expects one argument) <remote-sharepath>", True)
-    Call WriteLogData("For e.g. \\192.168.1.1\share", True)
+    Call WriteLogData("Usage: (expects one or two arguments) <remote-sharepath> <verbose logging>", True)
+    Call WriteLogData("For e.g. \\192.168.1.1\share [True/False]", True)
     Call WriteLogData(Now & ": ERROR: Too few arguments provided. Exiting...", True)
     AppExit(1)
 End if
 
 '/ Gather share name from command line arguments
-strShare=WScript.Arguments(0)
-
+If (WScript.Arguments.Count = 1) Then
+    strShare=WScript.Arguments(0)
+ElseIf (WScript.Arguments.Count = 2) Then
+    strShare=WScript.Arguments(0)
+    strVerboseLogging=WScript.Arguments(1)
+End If
 
 
 '/ Collect OS information
