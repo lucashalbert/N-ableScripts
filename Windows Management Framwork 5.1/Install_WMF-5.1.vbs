@@ -292,48 +292,6 @@ Sub GetMaxInstalledDotNetVersion
 
     Call WriteLogData(strMsg, False)
     Call WriteLogData(Now & ": INFO: Max Installed .NET Version: " & strMaxInstalledDotNETVersion, False)
-
-
-
-'/    Call WriteLogData(Now & ": INFO: Collecting Installed .NET Framework Versions...", True)
-'/    On Error Resume Next
-'/    
-'/    ' Query WMI
-'/    Set objWMIService = GetObject("winmgmts://" & strComputer & "/root/cimv2")
-'/    
-'/    ' Get the error number 
-'/    If Err.Number Then
-'/        strMsg = vbCrLf & strComputer & vbCrLf & _
-'/                 "Error # " & Err.Number & vbCrLf & _
-'/                 Err.Description & vbCrLf & vbCrLf
-'/        
-'/        Call WriteLogData(Now & ": " & strMsg, True)
-'/        AppExit(1)
-'/    End If
-'/
-'/    '/ Collect .NET framework information
-'/    Set colItems = objWMIService.ExecQuery("Select Name, Version from Win32_Product Where Name Like 'Microsoft .NET Framework%'")
-'/    strMsg = "/** .NET Framework Information **/" & vbCrLf
-'/    For Each objItem in colItems
-'/        strMsg = strMsg & _
-'/            "Framework Name  : " & objItem.Name & vbCrLf & _
-'/            ".NET Version    : " & objItem.Version & vbCrLf
-'/
-'/        If objItem.Version > strMaxInstalledDotNETVersion Then
-'/            strMaxInstalledDotNETVersion = objItem.Version
-'/        End If
-'/
-'/    ' Cleanup
-'/    Set objWMIService = Nothing
-'/    Set colItems = Nothing
-'/    Next
-'/    
-'/
-'/    strMsg = strMsg & _
-'/        "/********************************/" & vbCrLf
-'/
-'/    Call WriteLogData(strMsg, False)
-'/    Call WriteLogData(Now & ": INFO: Max Installed .NET Version: " & strMaxInstalledDotNETVersion, False)
 End Sub
 
 '////////////////////////////////////////////////////////////////////////////////////
