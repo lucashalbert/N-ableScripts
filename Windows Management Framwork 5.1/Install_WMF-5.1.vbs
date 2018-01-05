@@ -447,7 +447,6 @@ Function IsWindowsUpdateServiceRunning(counter)
     '/ Set impersonation for WMI query
     Set objWMIService = GetObject("winmgmts:" & "{impersonationLevel=impersonate}!\\" & strComputer & "\root\cimv2")
     
-    '/strWMIQuery = "Select * from Win32_Service Where Name = 'wuauserv' and state='Running'"
     strWMIQuery = "Select * from Win32_Service Where Name = 'wuauserv' and StartMode='Auto'"
 
     For Each service In objWMIService.ExecQuery(strWMIQuery)
