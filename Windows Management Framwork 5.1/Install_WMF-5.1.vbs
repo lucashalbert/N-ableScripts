@@ -3,6 +3,7 @@
 '/  Author:         Lucas Halbert <https://www.lhalbert.xyz>
 '/  Date:           10.05.2017
 '/  Last Edited:    01.05.2018
+'/  Version:        2018.01.05
 '/  Purpose:        Install Windows Management Framework 5.1
 '/  Description:    Installs the Windows Management Framework version 5.1. Checks
 '/                  that the .NET Framework dependecies are met and installs the

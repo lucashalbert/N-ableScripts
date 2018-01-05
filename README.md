@@ -3,7 +3,7 @@
 
 | Name             | Description         | Script Type   | Version      |
 | ---------------- | ------------------- | ------------- | ------------ |
-Windows Management Framework 5.1 | Installs the Windows Management Framework version 5.1. Checks that the .NET Framework dependecies are met and installs the appropriate .NET redistributable if needed. This script takes a single argument which is a CIFS/SMB share path. This script requires that both the .NET Framework redistributable installer and the various Windows Management Framework installers are located in the command line specified share path and trusted by the network (ie: unblock the internet downloaded files). | VBS | 11.10.2017 |
+Windows Management Framework 5.1 | Installs the Windows Management Framework version 5.1. Checks that the .NET Framework dependecies are met and installs the appropriate .NET redistributable if needed. This script takes a single argument which is a CIFS/SMB share path. This script requires that both the .NET Framework redistributable installer and the various Windows Management Framework installers are located in the command line specified share path and trusted by the network (ie: unblock the internet downloaded files). | VBS | 2018.01.05 |
 
 
 ### Install Windows Management Framework v5.1
