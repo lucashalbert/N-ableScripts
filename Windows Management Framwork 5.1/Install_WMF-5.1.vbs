@@ -222,7 +222,7 @@ Sub GetOsInformation()
     ' Collect OS information 
     Set colItems = objWMIService.ExecQuery("Select * from Win32_OperatingSystem",,48)
     For Each objItem in colItems
-        strMsg = vbCrLf & "/******** OS Information ********/" & vbCrLf & _
+        strMsg = "/******** OS Information ********/" & vbCrLf & _
                  "Computer Name   : " & objItem.CSName & vbCrLf & _
                  "Windows Version : " & objItem.Version & vbCrLf & _
                  "ServicePack     : " & objItem.CSDVersion & vbCrLf & _
@@ -242,12 +242,11 @@ Sub GetOsInformation()
     Set colItems = Nothing
     Next
 
-
+    Call WriteLogData(Now & ": INFO: Detected OS Version: " & strOsVersion, False)
+    Call WriteLogData(Now & ": INFO: Detected OS Sub-Version: " & oSSubVersion, False)
+    Call WriteLogData(Now & ": INFO: Detected OS Product Type: " & strOsProductType, False)
+    Call WriteLogData(Now & ": INFO: Detected OS Architecture: " & strOsArchitecture, False)
     Call WriteLogData(strMsg, False)
-    Call WriteLogData(Now & ": INFO: OS Version: " & strOsVersion, False)
-    Call WriteLogData(Now & ": INFO: OS Sub-Version: " & oSSubVersion, False)
-    Call WriteLogData(Now & ": INFO: OS Product Type: " & strOsProductType, False)
-    Call WriteLogData(Now & ": INFO: OS Architecture: " & strOsArchitecture, False)
 End Sub
 
 
@@ -268,7 +267,7 @@ Sub GetMaxInstalledDotNetVersion
     strKeyPath = "SOFTWARE\Microsoft\NET Framework Setup\NDP"
     objReg.EnumKey HKEY_LOCAL_MACHINE,strKeyPath,allSub
 
-    strMsg = vbCrLf & "/** .NET Framework Information **/" & vbCrLf
+    strMsg = "/** .NET Framework Information **/" & vbCrLf
 
     For Each strKey In allSub
         objReg.EnumKey HKEY_LOCAL_MACHINE,strKeyPath & "\" & strKey, allSubTwo
@@ -290,8 +289,8 @@ Sub GetMaxInstalledDotNetVersion
 
     Set objReg = Nothing
 
-    Call WriteLogData(strMsg, False)
     Call WriteLogData(Now & ": INFO: Max Installed .NET Version: " & strMaxInstalledDotNETVersion, False)
+    Call WriteLogData(strMsg, False)
 End Sub
 
 '////////////////////////////////////////////////////////////////////////////////////
